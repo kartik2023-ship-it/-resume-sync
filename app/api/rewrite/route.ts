@@ -27,9 +27,9 @@ export async function POST(req: NextRequest) {
       const result = await mammoth.extractRawText({ buffer });
       resumeText = result.value;
     } else if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-      // Dynamically import pdf-parse to avoid Next.js build issues
-      const pdfParse = (await import("pdf-parse")).default;
-      const data = await pdfParse(buffer);
+      const { PDFParse } = await import("pdf-parse");
+      const parser = new PDFParse({ data: buffer });
+      const data = await parser.getText();
       resumeText = data.text;
     } else {
       return NextResponse.json(
