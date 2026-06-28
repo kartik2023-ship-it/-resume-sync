@@ -1,14 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Document, Packer, Paragraph, TextRun } from "docx";
-
-interface ATSResult {
-  score: number;
-  keywordMatch: number;
-  skillsCoverage: number;
-  suggestions: string[];
-}
+import { generateATSDocx } from "./lib/generateATSDocx";
+import { generateVisualDocx } from "./lib/generateVisualDocx";
+import type { ATSScore, StructuredResume } from "./lib/types";
 
 function scoreTheme(score: number) {
   if (score >= 80)
@@ -36,11 +31,21 @@ function scoreTheme(score: number) {
   };
 }
 
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [jd, setJd] = useState("");
   const [resume, setResume] = useState("");
-  const [ats, setAts] = useState<ATSResult | null>(null);
+  const [structured, setStructured] = useState<StructuredResume | null>(null);
+  const [ats, setAts] = useState<ATSScore | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -53,6 +58,7 @@ export default function Home() {
     setError("");
     setLoading(true);
     setResume("");
+    setStructured(null);
     setAts(null);
 
     try {
@@ -71,6 +77,7 @@ export default function Home() {
         setError(data.error ?? "Something went wrong.");
       } else {
         setResume(data.resume ?? "");
+        setStructured(data.structured ?? null);
         setAts(data.ats ?? null);
       }
     } catch {
@@ -80,21 +87,16 @@ export default function Home() {
     }
   }
 
-  async function handleDownload() {
-    if (!resume) return;
+  async function handleDownloadATS() {
+    if (!structured) return;
+    const blob = await generateATSDocx(structured);
+    triggerDownload(blob, "resume-ats.docx");
+  }
 
-    const paragraphs = resume.split("\n").map(
-      (line) => new Paragraph({ children: [new TextRun(line)] })
-    );
-
-    const doc = new Document({ sections: [{ children: paragraphs }] });
-    const blob = await Packer.toBlob(doc);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "rewritten-resume.docx";
-    a.click();
-    URL.revokeObjectURL(url);
+  async function handleDownloadVisual() {
+    if (!structured) return;
+    const blob = await generateVisualDocx(structured);
+    triggerDownload(blob, "resume-visual.docx");
   }
 
   const theme = ats ? scoreTheme(ats.score) : null;
@@ -276,15 +278,31 @@ export default function Home() {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
                     Rewritten Resume
                   </p>
-                  <button
-                    onClick={handleDownload}
-                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download DOCX
-                  </button>
+                  {/* Download buttons */}
+                  {structured && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleDownloadATS}
+                        className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                        title="Single column, no graphics — optimised for ATS parsers"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        ATS Friendly
+                      </button>
+                      <button
+                        onClick={handleDownloadVisual}
+                        className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors"
+                        title="Formatted layout with tables and styled headers"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Visual Format
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <textarea
                   value={resume}
