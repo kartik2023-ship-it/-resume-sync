@@ -178,6 +178,9 @@ export async function POST(req: NextRequest) {
       resumeText = result.value;
     } else if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
       const { PDFParse } = await import("pdf-parse");
+      // Disable the pdfjs-dist web worker — not needed in Node.js and its
+      // dynamic import of pdf.worker.mjs breaks in bundled environments.
+      PDFParse.setWorker("");
       const parser = new PDFParse({ data: buffer });
       const data = await parser.getText();
       resumeText = data.text;
