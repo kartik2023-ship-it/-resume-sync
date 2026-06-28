@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { generateATSDocx } from "./lib/generateATSDocx";
-import { generateVisualDocx } from "./lib/generateVisualDocx";
 import type { ATSScore, StructuredResume } from "./lib/types";
 
 function scoreTheme(score: number) {
@@ -89,13 +87,25 @@ export default function Home() {
 
   async function handleDownloadATS() {
     if (!structured) return;
-    const blob = await generateATSDocx(structured);
+    const res = await fetch("/api/download/ats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ structured }),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
     triggerDownload(blob, "resume-ats.docx");
   }
 
   async function handleDownloadVisual() {
     if (!structured) return;
-    const blob = await generateVisualDocx(structured);
+    const res = await fetch("/api/download/visual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ structured }),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
     triggerDownload(blob, "resume-visual.docx");
   }
 
